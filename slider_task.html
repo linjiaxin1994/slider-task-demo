@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Slider Task with Practice and Timed Real Task</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; max-width: 700px; }
+  h2 { margin-top: 0; }
+  .slider-row { margin-bottom: 15px; display: flex; align-items: center; }
+  .target { width: 70px; font-weight: bold; }
+  .slider { width: 300px; margin: 0 10px; }
+  .diff { width: 100px; }
+  #result { margin-top: 20px; font-size: 18px; font-weight: bold; }
+  #task-container { margin-top: 20px; }
+  button { padding: 8px 15px; font-size: 16px; cursor: pointer; margin-right: 10px; }
+  #nav-buttons { margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<h2>Slider Task</h2>
+<div id="instructions">
+  <p>Welcome! First, you will complete a short practice task with 3 sliders.</p>
+  <p>Try to move each slider as close as possible to its target value.</p>
+  <p>After practice, you can repeat up to 3 times or start the real task anytime.</p>
+</div>
+
+<div id="task-container"></div>
+
+<div id="nav-buttons">
+  <button id="practice-btn">Start Practice Task</button>
+  <button id="start-real-btn" style="display:none;">Start Real Task</button>
+</div>
+
+<div id="result"></div>
+
+<script>
+  const MAX_VALUE = 250;
+  const THRESHOLD = 5; // 允许误差
+  const TIME_LIMIT = 120; // 秒，正式任务时间限制
+
+  const practiceNum = 3;  
+  const maxPracticeCount = 3; 
+  const realNum = 50; // 实际用时改成50
+
+  let currentStage = 'intro';  // intro -> practice -> real -> done
+  let practiceCount = 0;
+  let targets = [];
+  let timerInterval;
+
+  const taskContainer = document.getElementById('task-container');
+  const practiceBtn = document.getElementById('practice-btn');
+  const startRealBtn = document.getElementById('start-real-btn');
+  const resultDiv = document.getElementById('result');
+  const instructions = document.getElementById('instructions');
+
+  function generateTargets(num) {
+    return Array.from({length: num}, () => Math.floor(Math.random() * (MAX_VALUE + 1)));
+  }
+
+  function createSliders(num) {
+    taskContainer.innerHTML = '';
+    targets = generateTargets(num);
+    for(let i=0; i<num; i++){
+      const row = document.createElement('div');
+      row.className = 'slider-row';
+
+      const targetLabel = document.createElement('div');
+      targetLabel.className = 'target';
+      targetLabel.textContent = `Target: ${targets[i]}`;
+
+      const slider = document.createElement('input');
+      slider.type = 'range';
+      slider.min = 0;
+      slider.max = MAX_VALUE;
+      slider.value = 0;
+      slider.className = 'slider';
+      slider.id = `slider-${i}`;
+
+      const diffLabel = document.createElement('div');
+      diffLabel.className = 'diff';
+      diffLabel.id = `diff-${i}`;
+      diffLabel.textContent = `Diff: ${targets[i]}`;
+
+      slider.addEventListener('input', () => {
+        const diff = Math.abs(targets[i] - slider.value);
+        diffLabel.textContent = `Diff: ${diff}`;
+      });
+
+      row.appendChild(targetLabel);
+      row.appendChild(slider);
+      row.appendChild(diffLabel);
+
+      taskContainer.appendChild(row);
+    }
+  }
+
+  function calculateSuccessCount() {
+    let count = 0;
+    for(let i=0; i<targets.length; i++){
+      const slider = document.getElementById(`slider-${i}`);
+      if(Math.abs(targets[i] - slider.value) <= THRESHOLD) count++;
+    }
+    return count;
+  }
+
+  // 练习按钮事件
+  practiceBtn.addEventListener('click', () => {
+    if(currentStage === 'intro' || currentStage === 'practice'){
+      if(currentStage === 'intro'){
+        instructions.innerHTML = '<p>Practice Task: Try to match the targets as closely as possible.</p><p>You can practice up to 3 times or start the real task anytime.</p>';
+        currentStage = 'practice';
+      }
+      createSliders(practiceNum);
+      resultDiv.textContent = '';
+      practiceBtn.textContent = 'Finish Practice Attempt';
+      startRealBtn.style.display = 'inline-block';
+    } else if(currentStage === 'practice' && practiceBtn.textContent === 'Finish Practice Attempt'){
+      practiceCount++;
+      const practiceSuccess = calculateSuccessCount();
+      resultDiv.textContent = `Practice attempt ${practiceCount} complete. You matched ${practiceSuccess} out of ${practiceNum} sliders within ±${THRESHOLD} units.`;
+      if(practiceCount >= maxPracticeCount){
+        practiceBtn.disabled = true;
+        practiceBtn.textContent = 'Max Practice Attempts Reached';
+      } else {
+        practiceBtn.textContent = 'Practice Again';
+      }
+    } else if(currentStage === 'practice' && practiceBtn.textContent === 'Practice Again'){
+      createSliders(practiceNum);
+      resultDiv.textContent = '';
+      practiceBtn.textContent = 'Finish Practice Attempt';
+    }
+  });
+
+  // 开始正式任务按钮事件
+  startRealBtn.addEventListener('click', () => {
+    currentStage = 'real';
+    practiceBtn.style.display = 'none';
+    startRealBtn.style.display = 'none';
+    resultDiv.textContent = '';
+    instructions.innerHTML = '<p>Now, please complete the <strong>real</strong> task below within 120 seconds.</p>';
+    createSliders(realNum);
+
+    // 添加正式任务提交按钮
+    const submitBtn = document.createElement('button');
+    submitBtn.id = 'submit-btn';
+    submitBtn.textContent = 'Submit and Return to Survey';
+    document.getElementById('nav-buttons').appendChild(submitBtn);
+
+    submitBtn.addEventListener('click', () => {
+      finishRealTask();
+    });
+
+    startTimer();
+  });
+
+  // 时间限制计时器（不显示给参与者）
+  function startTimer() {
+    let timeLeft = TIME_LIMIT;
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      if(timeLeft <= 0){
+        clearInterval(timerInterval);
+        endRealTaskDueToTimeout();
+      }
+    }, 1000);
+  }
+
+  function endRealTaskDueToTimeout() {
+    for(let i=0; i<realNum; i++){
+      document.getElementById(`slider-${i}`).disabled = true;
+    }
+    const submitBtn = document.getElementById('submit-btn');
+    if(submitBtn) submitBtn.disabled = true;
+    resultDiv.textContent = `Time is up! Auto-submitting your results...`;
+    finishRealTask();
+  }
+
+  function finishRealTask() {
+    clearInterval(timerInterval);
+    const submitBtn = document.getElementById('submit-btn');
+    if(submitBtn) submitBtn.disabled = true;
+
+    const realSuccess = calculateSuccessCount();
+    resultDiv.textContent = `You matched ${realSuccess} out of ${realNum} sliders within ±${THRESHOLD} units. Returning to survey...`;
+
+    // 编码数据跳转
+    let dataObj = {};
+    for(let i=0; i<realNum; i++){
+      const slider = document.getElementById(`slider-${i}`);
+      dataObj[i] = {
+        target: targets[i],
+        value: slider.value
+      };
+    }
+    let jsonStr = JSON.stringify(dataObj);
+    let encoded = encodeURIComponent(btoa(jsonStr));
+
+    // TODO：替换为你自己的Qualtrics问卷跳转链接
+    const qualtricsURL = "https://qualtricsxmlwfsnvfp3.qualtrics.com/jfe/form/SV_0Ai7Y9gcIkoDlHg?sliderdata=" + encoded;
+
+    setTimeout(() => {
+      window.location.href = qualtricsURL;
+    }, 1500);
+  }
+</script>
+
+</body>
+</html>
