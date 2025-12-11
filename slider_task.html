@@ -55,6 +55,13 @@
   const resultDiv = document.getElementById('result');
   const instructions = document.getElementById('instructions');
 
+  // --------- 新增：从URL获取ResponseID参数 ----------
+  function getQueryParam(param) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(param);
+  }
+  const responseID = getQueryParam('ResponseID');  // 取到ResponseID参数
+
   function generateTargets(num) {
     return Array.from({length: num}, () => Math.floor(Math.random() * (MAX_VALUE + 1)));
   }
@@ -197,8 +204,12 @@
     let jsonStr = JSON.stringify(dataObj);
     let encoded = encodeURIComponent(btoa(jsonStr));
 
-    // TODO：替换为你自己的Qualtrics问卷跳转链接
-    const qualtricsURL = "https://qualtricsxmlwfsnvfp3.qualtrics.com/jfe/form/SV_0Ai7Y9gcIkoDlHg?sliderdata=" + encoded;
+    // —— 替换下面为你的Qualtrics问卷跳转链接 ——  
+    // 注意：这里带上了 ResponseID 参数，保持续答功能
+    const qualtricsBaseURL = "https://qualtricsxmlwfsnvfp3.qualtrics.com/jfe/form/SV_0Ai7Y9gcIkoDlHg";
+
+    // 跳转URL带 sliderdata 和 ResponseID 参数
+    const qualtricsURL = qualtricsBaseURL + "?sliderdata=" + encoded + "&ResponseID=" + encodeURIComponent(responseID);
 
     setTimeout(() => {
       window.location.href = qualtricsURL;
